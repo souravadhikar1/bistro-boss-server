@@ -27,13 +27,25 @@ async function run() {
 
     const menuCollection = client.db("bistroDB").collection("menu");
     const reviewCollection = client.db("bistroDB").collection("reviews");
+    const cartCollection = client.db("bistroDB").collection("carts");
 
+    //  ! for menu collection
     app.get("/menu", async (req, res) => {
       const result = await menuCollection.find().toArray();
       res.send(result);
     });
+    // ! For review collection
     app.get("/reviews", async (req, res) => {
       const result = await reviewCollection.find().toArray();
+      res.send(result);
+    });
+
+    // ! CURD Oparetion statrs
+
+    app.post("/carts", async (req, res) => {
+      const item = rew.body;
+      console.log(items);
+      const result = await cartCollection.insertOne(item);
       res.send(result);
     });
 
@@ -56,3 +68,19 @@ app.get("/", (req, res) => {
 app.listen(port, () => {
   console.log(`Bistro is listening on ${port}`);
 });
+
+/**
+ * !-------------------
+ *
+ *?     Naming-Convention
+ * !----------------------
+ *
+ * ! Users: userCollection
+ * ! app.get('/users)
+ * !app.get('/users/:id)
+ * ! app.post('/users)
+ * ! app.Patch('/users/:id')
+ * ! app.put('/users/:id')
+ * ! app.delete('/users/:id')
+ *
+ * */
