@@ -14,20 +14,19 @@ app.use(express.json());
 const verifyJWT = (req, res, next) => {
   const authorization = req.headers.authorization;
   if (!authorization) {
-    return res.send
+    return res
       .status(401)
       .send({ error: true, message: "Invalid authorization" });
   }
   // ! bearer token
   const token = authorization.split(" ")[1];
-  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decode) => {
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
     if (err) {
-      return res.send
+      return res
         .status(401)
-        .send({ error: true, message: "Invalid authorization" });
+        .send({ error: true, message: "unauthorized access" });
     }
-
-    req.decode = decode;
+    req.decoded = decoded;
     next();
   });
 };
@@ -63,8 +62,28 @@ async function run() {
       res.send({ token });
     });
 
+    // ! Warning: use verifyJWT before using verifyAdmin
+    const verifyAdmin = async (req, res, next) => {
+      const email = req.decoded.email;
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      if (user?.role !== "admin") {
+        return res
+          .status(403)
+          .send({ error: true, message: "forbidden message" });
+      }
+      next();
+    };
+
+    /**
+     *? 0. do not show secure links to those who should not see the links
+     * ? 1. use jwt token: verifyJWT
+     * ? 2. use verifyAdmin middleware
+     */
+
     // ! Users related Apiiiiiiii_____________----------
-    app.get("/users", async (req, res) => {
+
+    app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       const result = await usersCollection.find().toArray();
       res.send(result);
     });
@@ -77,6 +96,21 @@ async function run() {
         return res.send({ message: "User already exist" });
       }
       const result = await usersCollection.insertOne(user);
+      res.send(result);
+    });
+
+    //! security layer: verifyJWT
+    // !email same
+    // !check admin
+    app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+      const email = req.params.email;
+      if (req.decoded.email !== email) {
+        res.send({ admin: false });
+      }
+
+      const query = { email: email };
+      const user = await usersCollection.findOne(query);
+      const result = { admin: user?.role === "admin" };
       res.send(result);
     });
 
@@ -103,27 +137,20 @@ async function run() {
       res.send(result);
     });
 
-    // ! CURD Oparetion statrs
-
-    app.post("/carts", async (req, res) => {
-      const item = req.body;
-      // console.log(item);
-      const result = await cartCollection.insertOne(item);
-      res.send(result);
-    });
     // ! for carts get api------------>
 
     app.get("/carts", verifyJWT, async (req, res) => {
       const email = req.query.email;
+
       if (!email) {
-        return res([]);
+        res.send([]);
       }
 
       const decodedEmail = req.decoded.email;
       if (email !== decodedEmail) {
         return res
           .status(403)
-          .send({ error: true, message: "porviden access " });
+          .send({ error: true, message: "porviden access" });
       }
 
       const query = { email: email };
@@ -131,6 +158,12 @@ async function run() {
       res.send(result);
     });
 
+    app.post("/carts", async (req, res) => {
+      const item = req.body;
+      // console.log(item);
+      const result = await cartCollection.insertOne(item);
+      res.send(result);
+    });
     // ! for delete method
 
     app.delete("/carts/:id", async (req, res) => {
